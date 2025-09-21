@@ -11,57 +11,31 @@
     background: linear-gradient(#0b1020, #1b2130);
     font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
     color: #fff;
-    -webkit-tap-highlight-color: transparent;
   }
-  #canvas{
-    display:block;
-    width:100%;
-    height:100vh;
-    touch-action: none;
-  }
+  #canvas{ display:block; width:100%; height:100vh; }
   .mensaje {
-    position: absolute;
-    top: 50%;
-    left: 50%;
+    position: absolute; top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    font-size: 28px;
-    font-weight: bold;
+    font-size: 28px; font-weight: bold;
     color: #ffeb3b;
     text-shadow: 0 0 12px rgba(255,255,150,0.9),
                  0 0 20px rgba(255,255,80,0.7);
-    text-align: center;
     animation: latir 2s infinite;
-    pointer-events: none;
   }
   @keyframes latir {
     0%,100% { transform: translate(-50%,-50%) scale(1); }
     50% { transform: translate(-50%,-50%) scale(1.15); }
   }
-  .credits {
-    position: absolute;
-    right: 12px;
-    bottom: 12px;
-    font-size:12px;
-    opacity:0.9;
-    background: rgba(0,0,0,0.18);
-    padding:6px 8px;
-    border-radius:8px;
-  }
 </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
-
 <div class="mensaje">🌼 Te quiero mucho Suyapa 💛</div>
-
-<div class="credits">
-  Hecho con ❤️ para ti
-</div>
 
 <script>
 (() => {
   const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d', { alpha: true });
+  const ctx = canvas.getContext('2d');
   let DPR = Math.max(1, window.devicePixelRatio || 1);
 
   function resize(){
@@ -90,20 +64,14 @@
       this.life = rand(8,18);
       this.sway = rand(0.6,1.8);
       this.opacity = rand(0.85,1);
-      const warms = [
-        'hsl(45, 95%, 50%)',
-        'hsl(49, 90%, 55%)',
-        'hsl(38, 95%, 50%)',
-        'hsl(52, 95%, 55%)'
-      ];
-      this.color = warms[Math.floor(Math.random()*warms.length)];
-      this.centerColor = 'hsl(34,80%,35%)';
+      this.glowPhase = rand(0,Math.PI*2); // para que cada flor empiece distinta
     }
     update(dt){
       this.age += dt;
       this.x += this.vx * dt + Math.sin(this.age*this.sway)*6*dt;
       this.y += this.vy * dt;
       this.rotation += this.rotSpeed * dt;
+      this.glowPhase += dt * 2; // velocidad del pulso
       if (this.age > this.life) this.opacity -= dt * 0.6;
     }
     draw(ctx){
@@ -112,15 +80,27 @@
       ctx.translate(this.x, this.y);
       ctx.rotate(this.rotation);
       ctx.globalAlpha = Math.max(0, this.opacity);
-      const petalCount = 6;
+
+      // valor de pulso entre 0.5 y 1.2
+      const glow = 0.85 + Math.sin(this.glowPhase) * 0.35;
+
+      const petalCount = 10;
       for (let i=0;i<petalCount;i++){
         const angle = (Math.PI*2 / petalCount) * i;
-        drawPetal(ctx, angle, s, this.color);
+        drawPetal(ctx, angle, s, glow);
       }
+
+      // centro con halo dorado animado
+      ctx.shadowBlur = 25 * s * glow;
+      ctx.shadowColor = "rgba(255,215,0,0.8)";
+      const grad = ctx.createRadialGradient(0,0,2*s,0,0,8*s);
+      grad.addColorStop(0,"#fff59d");
+      grad.addColorStop(1,"#fbc02d");
       ctx.beginPath();
-      ctx.arc(0,0,6*s,0,Math.PI*2);
-      ctx.fillStyle = this.centerColor;
+      ctx.arc(0,0,7*s,0,Math.PI*2);
+      ctx.fillStyle = grad;
       ctx.fill();
+
       ctx.restore();
       ctx.globalAlpha = 1;
     }
@@ -129,18 +109,29 @@
     }
   }
 
-  function drawPetal(ctx, angle, s, color){
+  function drawPetal(ctx, angle, s, glow){
     ctx.save();
     ctx.rotate(angle);
+
+    const grad = ctx.createLinearGradient(0,0,0,40*s);
+    grad.addColorStop(0,"#fff176");
+    grad.addColorStop(0.5,"#fdd835");
+    grad.addColorStop(1,"#fbc02d");
+
     ctx.beginPath();
     ctx.moveTo(0,0);
-    ctx.bezierCurveTo(8*s, -12*s, 24*s, -6*s, 28*s, 12*s);
-    ctx.bezierCurveTo(24*s, 22*s, 8*s, 28*s, 0, 34*s);
-    ctx.bezierCurveTo(-8*s, 28*s, -24*s, 22*s, -28*s, 12*s);
-    ctx.bezierCurveTo(-24*s, -6*s, -8*s, -12*s, 0, 0);
+    ctx.bezierCurveTo(10*s, -12*s, 26*s, -4*s, 22*s, 18*s);
+    ctx.bezierCurveTo(18*s, 30*s, 8*s, 34*s, 0, 38*s);
+    ctx.bezierCurveTo(-8*s, 34*s, -18*s, 30*s, -22*s, 18*s);
+    ctx.bezierCurveTo(-26*s, -4*s, -10*s, -12*s, 0,0);
     ctx.closePath();
-    ctx.fillStyle = color;
+
+    // glow animado en los pétalos
+    ctx.shadowBlur = 20 * s * glow;
+    ctx.shadowColor = "rgba(255, 235, 59, 0.9)";
+    ctx.fillStyle = grad;
     ctx.fill();
+
     ctx.restore();
   }
 
@@ -190,3 +181,4 @@
 </script>
 </body>
 </html>
+
