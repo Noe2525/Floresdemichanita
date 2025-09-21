@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Flores Amarillas</title>
+<style>
+  html,body{
+    height:100%;
+    margin:0;
+    background: linear-gradient(#0b1020, #1b2130);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+    color: #fff;
+  }
+  #canvas{ display:block; width:100%; height:100vh; }
+  .mensaje {
+    position: absolute; top: 50%; left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 28px; font-weight: bold;
+    color: #ffeb3b;
+    text-shadow: 0 0 12px rgba(255,255,150,0.9),
+                 0 0 20px rgba(255,255,80,0.7);
+    animation: latir 2s infinite;
+  }
+  @keyframes latir {
+    0%,100% { transform: translate(-50%,-50%) scale(1); }
+    50% { transform: translate(-50%,-50%) scale(1.15); }
+  }
+</style>
+</head>
+<body>
+<canvas id="canvas"></canvas>
+<div class="mensaje">🌼 Te quiero mucho Suyapa 💛</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  let DPR = Math.max(1, window.devicePixelRatio || 1);
+
+  function resize(){
+    DPR = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = Math.floor(window.innerWidth * DPR);
+    canvas.height = Math.floor(window.innerHeight * DPR);
+    canvas.style.width = window.innerWidth + 'px';
+    canvas.style.height = window.innerHeight + 'px';
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize, {passive:true});
+  resize();
+
+  function rand(a,b){ return a + Math.random()*(b-a); }
+
+  class Flower {
+    constructor(x,y,scale=1){
+      this.x = x;
+      this.y = y;
+      this.vx = rand(-20,20);
+      this.vy = rand(10,80);
+      this.rotation = rand(0,Math.PI*2);
+      this.rotSpeed = rand(-0.6,0.6);
+      this.scale = scale * rand(0.8,1.2);
+      this.age = 0;
+      this.life = rand(8,18);
+      this.sway = rand(0.6,1.8);
+      this.opacity = rand(0.85,1);
+      this.glowPhase = rand(0,Math.PI*2); // para que cada flor empiece distinta
+    }
+    update(dt){
+      this.age += dt;
+      this.x += this.vx * dt + Math.sin(this.age*this.sway)*6*dt;
+      this.y += this.vy * dt;
+      this.rotation += this.rotSpeed * dt;
+      this.glowPhase += dt * 2; // velocidad del pulso
+      if (this.age > this.life) this.opacity -= dt * 0.6;
+    }
+    draw(ctx){
+      const s = this.scale;
+      ctx.save();
+      ctx.translate(this.x, this.y);
+      ctx.rotate(this.rotation);
+      ctx.globalAlpha = Math.max(0, this.opacity);
+
+      // valor de pulso entre 0.5 y 1.2
+      const glow = 0.85 + Math.sin(this.glowPhase) * 0.35;
+
+      const petalCount = 10;
+      for (let i=0;i<petalCount;i++){
+        const angle = (Math.PI*2 / petalCount) * i;
+        drawPetal(ctx, angle, s, glow);
+      }
+
+      // centro con halo dorado animado
+      ctx.shadowBlur = 25 * s * glow;
+      ctx.shadowColor = "rgba(255,215,0,0.8)";
+      const grad = ctx.createRadialGradient(0,0,2*s,0,0,8*s);
+      grad.addColorStop(0,"#fff59d");
+      grad.addColorStop(1,"#fbc02d");
+      ctx.beginPath();
+      ctx.arc(0,0,7*s,0,Math.PI*2);
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      ctx.restore();
+      ctx.globalAlpha = 1;
+    }
+    isDead(){
+      return this.opacity <= 0.02 || this.y > window.innerHeight + 100;
+    }
+  }
+
+  function drawPetal(ctx, angle, s, glow){
+    ctx.save();
+    ctx.rotate(angle);
+
+    const grad = ctx.createLinearGradient(0,0,0,40*s);
+    grad.addColorStop(0,"#fff176");
+    grad.addColorStop(0.5,"#fdd835");
+    grad.addColorStop(1,"#fbc02d");
+
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.bezierCurveTo(10*s, -12*s, 26*s, -4*s, 22*s, 18*s);
+    ctx.bezierCurveTo(18*s, 30*s, 8*s, 34*s, 0, 38*s);
+    ctx.bezierCurveTo(-8*s, 34*s, -18*s, 30*s, -22*s, 18*s);
+    ctx.bezierCurveTo(-26*s, -4*s, -10*s, -12*s, 0,0);
+    ctx.closePath();
+
+    // glow animado en los pétalos
+    ctx.shadowBlur = 20 * s * glow;
+    ctx.shadowColor = "rgba(255, 235, 59, 0.9)";
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  const flowers = [];
+  let lastTime = performance.now();
+
+  function spawnFlower(x,y,scale){ flowers.push(new Flower(x,y,scale)); }
+  function populateInitial(){
+    flowers.length = 0;
+    for (let i=0;i<15;i++){
+      spawnFlower(rand(20, window.innerWidth-20), rand(-200, window.innerHeight-20), rand(0.7,1.3));
+    }
+  }
+  populateInitial();
+
+  canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    for (let i=0;i<5;i++){
+      spawnFlower(e.clientX - rect.left + rand(-20,20), e.clientY - rect.top + rand(-20,20), rand(0.7,1.3));
+    }
+  });
+
+  function step(now){
+    const dt = Math.min(0.05, (now - lastTime) / 1000);
+    lastTime = now;
+    update(dt);
+    render();
+    requestAnimationFrame(step);
+  }
+
+  function update(dt){
+    if (Math.random() < 0.02) spawnFlower(rand(10, window.innerWidth-10), -20, rand(0.7,1.6));
+    for (let i=flowers.length-1;i>=0;i--){
+      flowers[i].update(dt);
+      if (flowers[i].isDead()) flowers.splice(i,1);
+    }
+  }
+
+  function render(){
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    flowers.sort((a,b)=>a.y-b.y);
+    for (const f of flowers) f.draw(ctx);
+  }
+
+  requestAnimationFrame(step);
+})();
+</script>
+</body>
+</html>
